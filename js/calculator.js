@@ -317,199 +317,166 @@ class NigalexCalculator {
             '#1abc9c', '#d35400', '#c0392b', '#2980b9', '#27ae60'
         ];
 
-        for (const panel of sortedPanels) {
-            let bestPlacement = null;
-            let bestScore = Infinity;
+        // ============================================
+// MAXRECTS CORE LOOP (REPLACES OLD LOOP)
+// ============================================
 
-            // Try all existing sheets
-            for (let sIdx = 0; sIdx < sheets.length; sIdx++) {
-                const sheet = sheets[sIdx];
-                const sheetW = sheet.usableWidth;
-                const sheetH = sheet.usableHeight;
+for (const panel of sortedPanels) {
 
-                // Try each free rectangle in this sheet
-                for (let rIdx = 0; rIdx < sheet.freeRects.length; rIdx++) {
-                    const rect = sheet.freeRects[rIdx];
+    let bestSheet = null;
+    let bestNode = null;
+    let bestScore = Infinity;
 
-                    // Try both orientations
-                    const orientations = [
-                        { w: panel.width, h: panel.height, rotated: false },
-                        { w: panel.height, h: panel.width, rotated: true }
-                    ];
+    for (const sheet of sheets) {
 
-                    for (const orient of orientations) {
-                        // Check if panel fits in free rectangle (with margins)
-                        const neededW = orient.w + cut;
-                        const neededH = orient.h + cut;
+        for (const rect of sheet.freeRects) {
 
-                        if (neededW <= rect.width && neededH <= rect.height) {
-                            // Calculate score: prefer less waste after placement
-                            // and prefer smaller rectangles (best-fit)
-                            const remainingArea = rect.width * rect.height - orient.w * orient.h;
-                            const rectSizeScore = rect.width * rect.height;
-                            const rotationPenalty = orient.rotated ? 0.1 : 0; // slight penalty for rotation
-    
-// NEW:
-const score = Math.max(rect.width - orient.w, rect.height - orient.h) + (rect.width * rect.height) * 0.0001 + (orient.rotated ? 0.5 : 0);
+            const orientations = [
+                { w: panel.width, h: panel.height, rotated: false },
+                { w: panel.height, h: panel.width, rotated: true }
+            ];
 
+            for (const o of orientations) {
 
-                            if (score < bestScore) {
-                                bestScore = score;
-                                bestPlacement = {
-                                    sheetIdx: sIdx,
-                                    rectIdx: rIdx,
-                                    x: rect.x,
-                                    y: rect.y,
-                                    width: orient.w,
-                                    height: orient.h,
-                                    rotated: orient.rotated,
-                                    placedWidth: orient.w,
-                                    placedHeight: orient.h
-                                };
-                            }
-                        }
+                const neededW = o.w + cut;
+                const neededH = o.h + cut;
+
+                if (neededW <= rect.width && neededH <= rect.height) {
+
+                    const leftoverW = rect.width - o.w;
+                    const leftoverH = rect.height - o.h;
+
+                    const shortSide = Math.min(leftoverW, leftoverH);
+                    const longSide = Math.max(leftoverW, leftoverH);
+                    const areaFit = (rect.width * rect.height) - (o.w * o.h);
+
+                    const score = areaFit * 10 + shortSide * 2 + longSide;
+
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestSheet = sheet;
+                        bestNode = {
+                            rect,
+                            width: o.w,
+                            height: o.h,
+                            rotated: o.rotated
+                        };
                     }
                 }
             }
-
-            // If no fit in existing sheets, create new sheet
-            if (!bestPlacement) {
-                // Determine best sheet orientation for this panel
-                const panelW = panel.width + cut;
-                const panelH = panel.height + cut;
-
-                // Try landscape
-                const fitLandscape = panelW <= (cfg.sheetWidth - 2 * edge) && panelH <= (cfg.sheetHeight - 2 * edge);
-                // Try portrait
-                const fitPortrait = panelW <= (cfg.sheetHeight - 2 * edge) && panelH <= (cfg.sheetWidth - 2 * edge);
-
-                let sheetOrientation, sheetW, sheetH, usableW, usableH;
-
-                if (fitLandscape && fitPortrait) {
-                    // Both fit, choose based on which leaves less waste
-                    const wasteLandscape = (cfg.sheetWidth - 2 * edge) * (cfg.sheetHeight - 2 * edge) - panel.width * panel.height;
-                    const wastePortrait = (cfg.sheetHeight - 2 * edge) * (cfg.sheetWidth - 2 * edge) - panel.width * panel.height;
-                    // Same area, so prefer landscape (standard)
-                    sheetOrientation = 'landscape';
-                    sheetW = cfg.sheetWidth;
-                    sheetH = cfg.sheetHeight;
-                } else if (fitPortrait) {
-                    sheetOrientation = 'portrait';
-                    sheetW = cfg.sheetHeight;
-                    sheetH = cfg.sheetWidth;
-                } else {
-                    sheetOrientation = 'landscape';
-                    sheetW = cfg.sheetWidth;
-                    sheetH = cfg.sheetHeight;
-                }
-
-                usableW = sheetW - 2 * edge;
-                usableH = sheetH - 2 * edge;
-
-                const newSheet = {
-                    id: sheets.length + 1,
-                    orientation: sheetOrientation,
-                    sheetWidth: sheetW,
-                    sheetHeight: sheetH,
-                    usableWidth: usableW,
-                    usableHeight: usableH,
-                    margin: edge,
-                    panels: [],
-                    freeRects: [{ x: 0, y: 0, width: usableW, height: usableH }],
-                    usedArea: 0
-                };
-
-                sheets.push(newSheet);
-
-                // Now try placing in this new sheet
-                bestPlacement = {
-                    sheetIdx: sheets.length - 1,
-                    rectIdx: 0,
-                    x: 0,
-                    y: 0,
-                    width: panel.width,
-                    height: panel.height,
-                    rotated: false,
-                    placedWidth: panel.width,
-                    placedHeight: panel.height
-                };
-
-                // Check if rotated fits better
-                if (panel.height + cut <= usableW && panel.width + cut <= usableH) {
-                    if (panel.width > usableW || panel.height > usableH) {
-                        // Must rotate to fit
-                        bestPlacement.width = panel.height;
-                        bestPlacement.height = panel.width;
-                        bestPlacement.rotated = true;
-                        bestPlacement.placedWidth = panel.height;
-                        bestPlacement.placedHeight = panel.width;
-                    }
-                }
-            }
-
-            // Place the panel
-            const sheet = sheets[bestPlacement.sheetIdx];
-            const rect = sheet.freeRects[bestPlacement.rectIdx];
-
-            const placedPanel = {
-                id: panelIdCounter++,
-                x: rect.x + edge,
-                y: rect.y + edge,
-                width: bestPlacement.placedWidth,
-                height: bestPlacement.placedHeight,
-                rotated: bestPlacement.rotated,
-                windowSizeIdx: panel.windowSizeIdx,
-                panelIdx: panel.panelIdx,
-                originalWidth: panel.width,
-                originalHeight: panel.height,
-                color: colors[panel.windowSizeIdx % colors.length]
-            };
-
-            sheet.panels.push(placedPanel);
-            sheet.usedArea += bestPlacement.placedWidth * bestPlacement.placedHeight;
-
-                        // Remove used rectangle
-            sheet.freeRects.splice(bestPlacement.rectIdx, 1);
-
-            // Guillotine split
-            const pw = bestPlacement.placedWidth + cut;
-            const ph = bestPlacement.placedHeight + cut;
-
-            // Two split options:
-            // 1. Horizontal cut first: right strip (full h) + bottom strip (pw width)
-            const hSplit = {
-                r1: { x: rect.x + pw, y: rect.y, width: rect.width - pw, height: rect.height },
-                r2: { x: rect.x, y: rect.y + ph, width: pw, height: rect.height - ph }
-            };
-
-            // 2. Vertical cut first: bottom strip (full w) + right strip (ph height)
-            const vSplit = {
-                r1: { x: rect.x, y: rect.y + ph, width: rect.width, height: rect.height - ph },
-                r2: { x: rect.x + pw, y: rect.y, width: rect.width - pw, height: ph }
-            };
-
-            // Choose split that maximizes minimum dimension (keeps rectangles more square-like)
-            const hMin = Math.min(
-                hSplit.r1.width > 0 && hSplit.r1.height > 0 ? Math.min(hSplit.r1.width, hSplit.r1.height) : 0,
-                hSplit.r2.width > 0 && hSplit.r2.height > 0 ? Math.min(hSplit.r2.width, hSplit.r2.height) : 0
-            );
-            const vMin = Math.min(
-                vSplit.r1.width > 0 && vSplit.r1.height > 0 ? Math.min(vSplit.r1.width, vSplit.r1.height) : 0,
-                vSplit.r2.width > 0 && vSplit.r2.height > 0 ? Math.min(vSplit.r2.width, vSplit.r2.height) : 0
-            );
-
-            const chosen = hMin >= vMin ? hSplit : vSplit;
-
-            if (chosen.r1.width > 20 && chosen.r1.height > 20) {
-                sheet.freeRects.push(chosen.r1);
-            }
-            if (chosen.r2.width > 20 && chosen.r2.height > 20) {
-                sheet.freeRects.push(chosen.r2);
-            }
-
-            // Clean up: merge adjacent free rectangles
-            this.mergeFreeRectangles(sheet);
         }
+    }
+
+    // 🔴 CREATE NEW SHEET IF NEEDED
+    if (!bestNode) {
+
+        const usableW = cfg.sheetWidth - 2 * edge;
+        const usableH = cfg.sheetHeight - 2 * edge;
+
+        const newSheet = {
+            id: sheets.length + 1,
+            orientation: 'landscape',
+            sheetWidth: cfg.sheetWidth,
+            sheetHeight: cfg.sheetHeight,
+            usableWidth: usableW,
+            usableHeight: usableH,
+            margin: edge,
+            panels: [],
+            freeRects: [{ x: 0, y: 0, width: usableW, height: usableH }],
+            usedArea: 0
+        };
+
+        sheets.push(newSheet);
+        bestSheet = newSheet;
+        bestNode = {
+            rect: newSheet.freeRects[0],
+            width: panel.width,
+            height: panel.height,
+            rotated: false
+        };
+    }
+
+    const rect = bestNode.rect;
+
+    const placedPanel = {
+        id: panelIdCounter++,
+        x: rect.x + edge,
+        y: rect.y + edge,
+        width: bestNode.width,
+        height: bestNode.height,
+        rotated: bestNode.rotated,
+        windowSizeIdx: panel.windowSizeIdx,
+        panelIdx: panel.panelIdx,
+        originalWidth: panel.width,
+        originalHeight: panel.height,
+        color: '#2e86c1'
+    };
+
+    bestSheet.panels.push(placedPanel);
+    bestSheet.usedArea += bestNode.width * bestNode.height;
+
+    // 🔥 MAXRECTS SPLIT (REPLACES GUILLOTINE)
+    const newRects = [];
+
+    for (const r of bestSheet.freeRects) {
+
+        if (
+            placedPanel.x >= r.x + r.width ||
+            placedPanel.x + bestNode.width <= r.x ||
+            placedPanel.y >= r.y + r.height ||
+            placedPanel.y + bestNode.height <= r.y
+        ) {
+            newRects.push(r);
+            continue;
+        }
+
+        if (placedPanel.x > r.x) {
+            newRects.push({
+                x: r.x,
+                y: r.y,
+                width: placedPanel.x - r.x,
+                height: r.height
+            });
+        }
+
+        if (placedPanel.x + bestNode.width < r.x + r.width) {
+            newRects.push({
+                x: placedPanel.x + bestNode.width,
+                y: r.y,
+                width: (r.x + r.width) - (placedPanel.x + bestNode.width),
+                height: r.height
+            });
+        }
+
+        if (placedPanel.y > r.y) {
+            newRects.push({
+                x: r.x,
+                y: r.y,
+                width: r.width,
+                height: placedPanel.y - r.y
+            });
+        }
+
+        if (placedPanel.y + bestNode.height < r.y + r.height) {
+            newRects.push({
+                x: r.x,
+                y: placedPanel.y + bestNode.height,
+                width: r.width,
+                height: (r.y + r.height) - (placedPanel.y + bestNode.height)
+            });
+        }
+    }
+
+    bestSheet.freeRects = newRects;
+}
+
+
+
+
+
+
+
+        
 
         // Calculate final statistics per sheet
         const sheetArea = cfg.sheetWidth * cfg.sheetHeight;
