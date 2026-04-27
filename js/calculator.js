@@ -370,23 +370,42 @@ for (const panel of sortedPanels) {
     // 🔴 CREATE NEW SHEET IF NEEDED
     if (!bestNode) {
 
+    // 🔁 LAST ATTEMPT: force fit into existing sheets
+    for (const sheet of sheets) {
+        for (const rect of sheet.freeRects) {
+
+            if (
+                panel.width <= rect.width &&
+                panel.height <= rect.height
+            ) {
+                bestSheet = sheet;
+                bestNode = {
+                    rect,
+                    width: panel.width,
+                    height: panel.height,
+                    rotated: false
+                };
+                break;
+            }
+        }
+        if (bestNode) break;
+    }
+
+    // 🚨 ONLY NOW create new sheet
+    if (!bestNode) {
+
         const usableW = cfg.sheetWidth - 2 * edge;
         const usableH = cfg.sheetHeight - 2 * edge;
 
         const newSheet = {
             id: sheets.length + 1,
-            orientation: 'landscape',
-            sheetWidth: cfg.sheetWidth,
-            sheetHeight: cfg.sheetHeight,
-            usableWidth: usableW,
-            usableHeight: usableH,
-            margin: edge,
             panels: [],
             freeRects: [{ x: 0, y: 0, width: usableW, height: usableH }],
             usedArea: 0
         };
 
         sheets.push(newSheet);
+
         bestSheet = newSheet;
         bestNode = {
             rect: newSheet.freeRects[0],
@@ -394,6 +413,7 @@ for (const panel of sortedPanels) {
             height: panel.height,
             rotated: false
         };
+    }
     }
 
     const rect = bestNode.rect;
@@ -467,7 +487,7 @@ for (const panel of sortedPanels) {
         }
     }
 
-    bestSheet.freeRects = newRects;
+    bestSheet.freeRects = pruneRects(newRects);
 }
 
 
