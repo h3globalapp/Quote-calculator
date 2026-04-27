@@ -300,7 +300,7 @@ class NigalexCalculator {
     // ============================================================
     // 2D GUILLOTINE GLASS OPTIMIZER
     // ============================================================
-    optimizeGlassCutting(panels) {
+    _optimizeSingle(panels) {
         const cfg = this.glassConfig;
         const edge = cfg.edgeMargin;
         const cut = cfg.cutMargin;
@@ -533,7 +533,27 @@ for (const panel of sortedPanels) {
             weight: GLASS_DATA.weight,
             note: `${totalPanels} panels across ${totalSheets} sheet(s)`
         };
+
+        optimizeGlassCutting(panels) {
+
+    let bestResult = null;
+
+    for (let i = 0; i < 12; i++) {
+
+        const shuffled = [...panels].sort(() => Math.random() - 0.5);
+
+        const result = this._optimizeSingle(shuffled);
+
+        if (!bestResult || result.totalWaste < bestResult.totalWaste) {
+            bestResult = result;
+        }
     }
+
+    return bestResult;
+        }
+    }
+
+    
 
     mergeFreeRectangles(sheet) {
         // Remove rectangles that are too small
