@@ -1,0 +1,25 @@
+{
+    "name": "NIGALEX Material Calculator",
+    "short_name": "NIGALEX Calc",
+    "description": "Calculate aluminium window and door material quantities for NIGALEX systems",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1a5276",
+    "theme_color": "#1a5276",
+    "orientation": "portrait",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

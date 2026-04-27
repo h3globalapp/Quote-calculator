@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a5276">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NIGALEX Material Calculator</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <style>
+        /* ============================================
+           COLLAPSIBLE DIAGRAM SECTIONS
+           ============================================ */
+        .diagram-section {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .diagram-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #1a5276 0%, #2e86c1 100%);
+            color: white;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .diagram-header h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .diagram-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .diagram-toggle:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .toggle-icon {
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+
+        .diagram-section.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .diagram-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.3s ease;
+            padding: 16px;
+        }
+
+        .diagram-section.collapsed .diagram-content {
+            max-height: 0;
+            padding: 0 16px;
+        }
+
+        /* ============================================
+           GLASS SHEET DIAGRAMS
+           ============================================ */
+        .glass-sheets-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            padding: 10px 0;
+        }
+
+        .glass-sheet {
+            background: #f0f0f0 !important;
+            border-radius: 4px;
+        }
+
+        .glass-panel {
+            border-radius: 2px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3);
+        }
+
+        .glass-panel:hover {
+            filter: brightness(1.1);
+        }
+
+        .glass-legend {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* ============================================
+           ALUMINUM BAR DIAGRAMS (Existing)
+           ============================================ */
+        .bar-item {
+            margin: 10px 0;
+        }
+
+        .bar-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .bar-visual {
+            display: flex;
+            height: 36px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #e0e0e0;
+            border: 1px solid #ccc;
+        }
+
+        .bar-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+            border-right: 1px solid rgba(255,255,255,0.3);
+            min-width: 20px;
+            position: relative;
+        }
+
+        .bar-waste {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: repeating-linear-gradient(
+                45deg,
+                #e8e8e8,
+                #e8e8e8 5px,
+                #f0f0f0 5px,
+                #f0f0f0 10px
+            );
+            color: #999;
+            font-size: 10px;
+            min-width: 20px;
+        }
+
+        .cutting-type-header {
+            margin: 16px 0 8px 0;
+            padding: 8px 12px;
+            background: var(--primary, #1a5276);
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .glass-sheet {
+                transform-origin: left top;
+                transform: scale(0.85);
+                margin-bottom: -30px;
+            }
+
+            .diagram-header h4 {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <h1>NIGALEX</h1>
+                <span>Material Calculator</span>
+            </div>
+            <div class="header-actions">
+                <button id="menu-toggle" class="icon-btn" aria-label="Menu">☰</button>
+                <button id="overflow-btn" class="icon-btn" aria-label="More">⋮</button>
+            </div>
+        </header>
+
+        <!-- Overflow Menu -->
+        <div id="overflow-menu" class="overflow-menu">
+            <button id="overflow-price" class="overflow-item">
+                <span class="icon">💰</span> Update Price List
+            </button>
+            <button id="overflow-about" class="overflow-item">
+                <span class="icon">ℹ️</span> About
+            </button>
+        </div>
+
+        <!-- Navigation Drawer -->
+        <nav id="main-nav" class="nav-drawer">
+            <div class="nav-header">
+                <h3>Select System</h3>
+                <button id="nav-close" class="close-btn">×</button>
+            </div>
+            <ul class="nav-list">
+                <li><a href="#" data-system="curtain-wall" class="nav-item">
+                    <span class="icon">🏢</span> Curtain Wall
+                </a></li>
+                <li><a href="#" data-system="casement" class="nav-item">
+                    <span class="icon">🪟</span> Casement Window
+                </a></li>
+                <li><a href="#" data-system="projected" class="nav-item">
+                    <span class="icon">↗️</span> Projected Window
+                </a></li>
+                <li><a href="#" data-system="sliding" class="nav-item">
+                    <span class="icon">➡️</span> Sliding Window
+                </a></li>
+            </ul>
+            <div class="nav-footer">
+                <p>Standard Length: 5.5m</p>
+                <p>Steel Rod: 39m</p>
+            </div>
+        </nav>
+
+        <!-- Overlay -->
+        <div id="overlay" class="overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Home Screen -->
+            <section id="home-screen" class="screen active">
+                <div class="hero">
+                    <h2>NIGALEX Aluminium Systems</h2>
+                    <p>Calculate exact material quantities and costs for your window and door projects</p>
+                </div>
+                <div class="system-cards">
+                    <div class="card" data-system="curtain-wall">
+                        <div class="card-icon">🏢</div>
+                        <h3>Curtain Wall</h3>
+                        <p>Semi-frameless facade system</p>
+                        <span class="badge">2 profiles</span>
+                    </div>
+                    <div class="card" data-system="casement">
+                        <div class="card-icon">🪟</div>
+                        <h3>Casement Window</h3>
+                        <p>CW42 system with variants</p>
+                        <span class="badge">23 profiles</span>
+                    </div>
+                    <div class="card" data-system="projected">
+                        <div class="card-icon">↗️</div>
+                        <h3>Projected Window</h3>
+                        <p>AS46 & CEGO systems</p>
+                        <span class="badge">14 profiles</span>
+                    </div>
+                    <div class="card" data-system="sliding">
+                        <div class="card-icon">➡️</div>
+                        <h3>Sliding Window</h3>
+                        <p>CEGO 1, 2 & 3 systems</p>
+                        <span class="badge">26 profiles</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calculator Screen -->
+            <section id="calculator-screen" class="screen">
+                <div class="screen-header">
+                    <button id="back-btn" class="back-btn">← Back</button>
+                    <h2 id="system-title">System Name</h2>
+                </div>
+
+                <!-- Step 1: Configuration -->
+                <div id="step-config" class="calc-step active">
+                    <h3>Step 1: Configuration</h3>
+
+                    <div class="form-group">
+                        <label>System Variant</label>
+                        <select id="variant-select" class="form-control">
+                            <option value="">Select variant...</option>
+                        </select>
+                    </div>
+
+                    <!-- Multi-Size Window Inputs -->
+                    <div class="form-group">
+                        <label>Window Sizes & Quantities</label>
+                        <div id="sizes-container">
+                            <div class="size-row" data-index="0">
+                                <div class="size-inputs">
+                                    <input type="number" class="form-control size-width" placeholder="Width (mm)" min="300" max="5000">
+                                    <span class="size-x">×</span>
+                                    <input type="number" class="form-control size-height" placeholder="Height (mm)" min="300" max="3000">
+                                    <input type="number" class="form-control size-qty" placeholder="Qty" min="1" value="1" style="width:60px;">
+                                </div>
+                                <div class="size-panels">
+                                    <label>Panels:</label>
+                                    <div class="radio-group size-radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="panels-0" value="1" checked> 1
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="panels-0" value="2"> 2
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="panels-0" value="3"> 3
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="panels-0" value="4"> 4
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="add-size-btn" class="btn-secondary" style="margin-top:8px;">+ Add Another Size</button>
+                    </div>
+
+                    <div class="form-group" id="glazing-group">
+                        <label>Glazing Type</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="glazing" value="single" checked> Single
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="glazing" value="double"> Double
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="net-tray"> Include Net/Burglary Tray
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="water-seal"> Water Seal (Projected only)
+                        </label>
+                    </div>
+
+                    <!-- Hinge Type Selector (for Curtain Wall & Projected) -->
+                    <div class="form-group" id="hinge-type-group" style="display:none;">
+                        <label>Hinge Type</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="hinge-type" value="big" checked> Big Hinges
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="hinge-type" value="small"> Small Hinges
+                            </label>
+                        </div>
+                        <p style="font-size:0.75rem;color:var(--gray);margin-top:6px;">1 pair per panel. Choose either big or small.</p>
+                    </div>
+
+                    <!-- Protector Bar Section -->
+                    <div class="form-group protector-section">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="protector-toggle"> Include Protector Bars
+                        </label>
+                        <div id="protector-options" class="protector-options" style="display:none;">
+                            <div class="form-group">
+                                <label>Bar Direction</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="protector-dir" value="horizontal"> Horizontal
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="protector-dir" value="vertical"> Vertical
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Bar Spacing (mm)</label>
+                                <input type="number" id="bar-spacing" class="form-control" placeholder="150" min="50" max="500" value="150">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Costing Section -->
+                    <div class="form-group project-costs-section">
+                        <h4 style="margin-bottom:12px;color:var(--primary);">Project Costs</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Transport (₦)</label>
+                                <input type="number" id="transport-cost" class="form-control" placeholder="0" min="0" step="100">
+                            </div>
+                            <div class="form-group">
+                                <label>Installation (₦)</label>
+                                <input type="number" id="installation-cost" class="form-control" placeholder="0" min="0" step="100">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Labor Cost (₦)</label>
+                                <input type="number" id="labor-cost" class="form-control" placeholder="0" min="0" step="100">
+                            </div>
+                            <div class="form-group">
+                                <label>No. of Workers</label>
+                                <input type="number" id="num-workers" class="form-control" placeholder="0" min="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>No. of Days</label>
+                            <input type="number" id="num-days" class="form-control" placeholder="0" min="0">
+                        </div>
+                    </div>
+
+                    <button id="calculate-btn" class="btn-primary">Calculate Materials</button>
+                </div>
+
+                <!-- Step 2: Results -->
+                <div id="step-results" class="calc-step">
+                    <h3>Material Bill of Quantities</h3>
+
+                    <!-- Size Summary -->
+                    <div id="size-summary" class="size-summary"></div>
+
+                    <div class="results-summary">
+                        <div class="summary-card">
+                            <span class="label">Total Windows</span>
+                            <span id="total-windows" class="value">0</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Total Weight</span>
+                            <span id="total-weight" class="value">0 kg</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Total Length</span>
+                            <span id="total-length" class="value">0 m</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Bars Needed</span>
+                            <span id="total-bars" class="value">0</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Waste</span>
+                            <span id="waste-percent" class="value">0%</span>
+                        </div>
+                        <div class="summary-card total-card">
+                            <span class="label">Material Subtotal</span>
+                            <span id="material-subtotal" class="value">₦0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Project Costs Summary -->
+                    <div class="project-costs-summary">
+                        <h4>Project Costs</h4>
+                        <div class="cost-row">
+                            <span>Transport:</span>
+                            <span id="cost-transport">₦0.00</span>
+                        </div>
+                        <div class="cost-row">
+                            <span>Installation:</span>
+                            <span id="cost-installation">₦0.00</span>
+                        </div>
+                        <div class="cost-row">
+                            <span>Labor:</span>
+                            <span id="cost-labor">₦0.00</span>
+                        </div>
+                        <div class="cost-row grand-total-row">
+                            <span><strong>Grand Total:</strong></span>
+                            <span id="grand-total" class="grand-total-value">₦0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="materials-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Profile Name</th>
+                                    <th>Profile No</th>
+                                    <th>Qty</th>
+                                    <th>Cut Length</th>
+                                    <th>Total Length</th>
+                                    <th>Weight</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materials-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-container">
+                        <h4>Accessories</h4>
+                        <table id="accessories-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Accessory</th>
+                                    <th>Qty</th>
+                                    <th>Notes</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accessories-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-container">
+                        <h4>Glass</h4>
+                        <table id="glass-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Sheets</th>
+                                    <th>Panel Size</th>
+                                    <th>Total Area (m²)</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="glass-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-container">
+                        <h4>Angle Bars (40×40mm)</h4>
+                        <table id="angle-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Component</th>
+                                    <th>Pieces (40mm)</th>
+                                    <th>Bars Needed</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="angle-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="protector-section" class="table-container" style="display:none;">
+                        <h4>Protector Bars</h4>
+                        <table id="protector-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Component</th>
+                                    <th>Qty</th>
+                                    <th>Cut Length</th>
+                                    <th>Total Length</th>
+                                    <th>Weight</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="protector-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ============================================ -->
+                    <!-- GLASS CUTTING DIAGRAMS (Collapsible) -->
+                    <!-- ============================================ -->
+                    <div id="glass-cutting-diagrams"></div>
+
+                    <!-- ============================================ -->
+                    <!-- ALUMINUM CUTTING DIAGRAMS (Collapsible) -->
+                    <!-- ============================================ -->
+                    <div id="aluminum-cutting-diagrams"></div>
+
+                    <div class="action-buttons">
+                        <button id="new-calc-btn" class="btn-secondary">New Calculation</button>
+                        <button id="export-btn" class="btn-primary">Export / Print</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Price List Screen -->
+            <section id="price-screen" class="screen">
+                <div class="screen-header">
+                    <button id="price-back-btn" class="back-btn">← Back</button>
+                    <h2>Update Price List</h2>
+                </div>
+
+                <div class="price-controls">
+                    <div id="price-status" class="price-status empty">
+                        <span id="price-status-text">No prices saved yet</span>
+                        <span id="price-status-count"></span>
+                    </div>
+                    <input type="text" id="price-search" class="form-control" placeholder="Search profiles...">
+                    <div class="price-actions">
+                        <button id="save-prices-btn" class="btn-primary">Save Prices</button>
+                        <button id="reset-prices-btn" class="btn-secondary">Reset All</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="price-table" class="data-table price-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>System</th>
+                                <th>Unit</th>
+                                <th>Price (₦)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="price-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- History Screen -->
+            <section id="history-screen" class="screen">
+                <h2>Calculation History</h2>
+                <div id="history-list" class="history-list">
+                    <p class="empty-state">No calculations yet. Start by selecting a system.</p>
+                </div>
+                <button id="clear-history" class="btn-secondary">Clear History</button>
+            </section>
+
+            <!-- About Screen -->
+            <section id="about-screen" class="screen">
+                <h2>About</h2>
+                <div class="about-content">
+                    <div class="logo-large">NIGALEX</div>
+                    <p>Nigerian Aluminium Extrusions Limited</p>
+                    <p>Material Calculator v3.1</p>
+                    <p>Standard profile length: 5.5 meters</p>
+                    <p>Steel rod length: 39 meters</p>
+                    <p>Glass sheet: 2133×3352mm</p>
+                    <p>Total profiles in database: 65</p>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <span class="stat-value">2</span>
+                            <span class="stat-label">Curtain Wall</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">23</span>
+                            <span class="stat-label">Casement</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">14</span>
+                            <span class="stat-label">Projected</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">26</span>
+                            <span class="stat-label">Sliding</span>
+                        </div>
+                    </div>
+                    <div class="features-list">
+                        <h4>Features</h4>
+                        <ul>
+                            <li>✓ Multi-size window calculations</li>
+                            <li>✓ Material quantity calculator</li>
+                            <li>✓ Cutting optimization (5.5m bars)</li>
+                            <li>✓ <strong>True 2D glass optimizer with rotation</strong></li>
+                            <li>✓ Guillotine glass cutting diagrams</li>
+                            <li>✓ Per-sheet waste calculation</li>
+                            <li>✓ Angle bar (40×40mm) calculation</li>
+                            <li>✓ Protector bar calculator</li>
+                            <li>✓ Editable price list</li>
+                            <li>✓ Project costing (transport, install, labor)</li>
+                            <li>✓ Cost estimation</li>
+                            <li>✓ Offline support (PWA)</li>
+                            <li>✓ Calculation history</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="#home" class="nav-link active" data-screen="home-screen">
+                <span class="icon">🏠</span>
+                <span class="label">Home</span>
+            </a>
+            <a href="#history" class="nav-link" data-screen="history-screen">
+                <span class="icon">📋</span>
+                <span class="label">History</span>
+            </a>
+            <a href="#about" class="nav-link" data-screen="about-screen">
+                <span class="icon">ℹ️</span>
+                <span class="label">About</span>
+            </a>
+        </nav>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var errorDiv = document.getElementById('mobile-error-log');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.id = 'mobile-error-log';
+                errorDiv.style.cssText = 'position:fixed;bottom:80px;left:10px;right:10px;background:#e74c3c;color:white;padding:10px;border-radius:8px;z-index:9999;font-size:12px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;';
+                document.body.appendChild(errorDiv);
+            }
+            var timestamp = new Date().toLocaleTimeString();
+            errorDiv.innerHTML += '[' + timestamp + '] GLOBAL ERROR: ' + msg + ' at line ' + line + '\n\n';
+            errorDiv.scrollTop = errorDiv.scrollHeight;
+            return false;
+        };
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed'));
+        }
+    </script>
+</body>
+</html>
